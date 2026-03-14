@@ -1,4 +1,9 @@
-type INT = u32;
+pub type INT = u32;
+
+pub trait Localizable {
+    fn coords(&self) -> (INT, INT);
+    fn id(&self) -> &str;
+}
 
 #[derive(Debug)]
 pub struct InputData {
@@ -12,7 +17,7 @@ pub struct InputData {
     pub clients: Vec<Client>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Repository {
     pub id: String,
     pub x: INT,
@@ -21,7 +26,17 @@ pub struct Repository {
     pub due_time: INT,
 }
 
-#[derive(Debug)]
+impl Localizable for Repository {
+    fn coords(&self) -> (INT, INT) {
+        (self.x, self.y)
+    }
+
+    fn id(&self) -> &str {
+        &self.id
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Client {
     pub id: String,
     pub x: INT,
@@ -30,6 +45,16 @@ pub struct Client {
     pub due_time: INT,
     pub demand: INT,
     pub service: INT,
+}
+
+impl Localizable for Client {
+    fn coords(&self) -> (INT, INT) {
+        (self.x, self.y)
+    }
+
+    fn id(&self) -> &str {
+        &self.id
+    }
 }
 
 #[derive(PartialEq)]

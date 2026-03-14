@@ -1,5 +1,10 @@
 type INT = u32;
 
+pub trait Localizable {
+    fn coords(&self) -> (INT, INT);
+    fn id(&self) -> &str;
+}
+
 #[derive(Debug)]
 pub struct InputData {
     pub name: String,
@@ -19,12 +24,32 @@ pub struct Repository {
     pub y: INT,
 }
 
+impl Localizable for Repository {
+    fn coords(&self) -> (INT, INT) {
+        (self.x, self.y)
+    }
+
+    fn id(&self) -> &str {
+        &self.id
+    }
+}
+
 #[derive(Debug)]
 pub struct Client {
     pub id: String,
     pub x: INT,
     pub y: INT,
     pub demand: INT,
+}
+
+impl Localizable for Client {
+    fn coords(&self) -> (INT, INT) {
+        (self.x, self.y)
+    }
+
+    fn id(&self) -> &str {
+        &self.id
+    }
 }
 
 #[derive(PartialEq)]

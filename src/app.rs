@@ -2,13 +2,16 @@ use std::path::PathBuf;
 
 use egui::Widget;
 
-use crate::parser::InputData;
+use crate::{
+    parser::InputData,
+    problem::{Problem, Solution},
+};
 
 pub struct VrpApp {
     pub files: Vec<PathBuf>,
     pub selected_file_id: usize,
-    pub input_data: Option<InputData>,
     pub time_into_account: bool,
+    pub buffer: String,
 }
 
 impl Default for VrpApp {
@@ -30,16 +33,14 @@ impl VrpApp {
         Self {
             files,
             selected_file_id: 0,
-            input_data: None,
             time_into_account: false,
+            buffer: String::new(),
         }
     }
 
-    fn load_file(&mut self, selected_file: PathBuf) {
+    fn load_file(&mut self, selected_file: PathBuf) -> InputData {
         let file_contents = std::fs::read_to_string(selected_file);
-        if let Ok(contents) = file_contents {
-            self.input_data = Some(crate::parser::InputData::parse_input(&contents));
-        }
+        InputData::parse_input(file_contents.expect("IO error for file").as_str())
     }
 }
 
@@ -69,13 +70,24 @@ impl eframe::App for VrpApp {
                     });
                 if ui.button("Charger").clicked() {
                     let selected_file = self.files[self.selected_file_id].clone();
-                    self.load_file(selected_file);
+                    self.buffer = format!("{:#?}", self.load_file(selected_file));
+                }
+                if ui.button("Effacer").clicked() {
+                    self.buffer.clear();
+                }
+                if ui.button("Résoudre").clicked() {
+                    let selected_file = self.files[self.selected_file_id].clone();
+                    let problem = Problem::new(self.load_file(selected_file));
+                    let solution = Solution::random(&problem);
+                    self.buffer = format!("{:#?}", solution);
                 }
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            if let Some(input) = &self.input_data {
-                egui::ScrollArea::vertical().show(ui, |ui| ui.label(format!("{:#?}", input)));
+            if !self.buffer.is_empty() {
+                ui.allocate_ui(ui.available_size(), |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| ui.label(self.buffer.clone()));
+                });
             }
         });
     }
