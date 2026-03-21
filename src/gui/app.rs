@@ -4,8 +4,8 @@ use std::path::PathBuf;
 
 use crate::{
     algorithm_runner::AlgorithmRunner,
-    gui_canvas::{MapTransform, draw_arrow, route_color},
-    gui_sidebar::Sidebar,
+    gui::gui_canvas::{MapTransform, draw_arrow, route_color},
+    gui::gui_sidebar::Sidebar,
     optimizers::{OptimizerDescriptor, available_optimizers},
     parser::InputData,
     problem::{Problem, Solution},
