@@ -1,11 +1,12 @@
+use egui::{Color32, Rect, Stroke, Vec2};
+
 use crate::{
     algorithm_runner::AlgorithmRunner,
     gui_canvas::{MapTransform, draw_arrow, route_color},
-    optimizing_algorithm::SAParams,
+    gui_sidebar::Sidebar,
     parser::InputData,
     problem::{Problem, Solution},
 };
-use egui::{Color32, Rect, Stroke, Vec2, Widget};
 use std::path::PathBuf;
 
 pub struct VrpApp {
@@ -43,13 +44,13 @@ impl VrpApp {
             buffer: String::new(),
             problem: None,
             solution: None,
-            iter_per_frame: 100,
+            iter_per_frame: 5000,
             algorithm_runner: None,
             iterations_done: 0,
         }
     }
 
-    fn load_file(&mut self, selected_file: PathBuf) -> InputData {
+    pub fn load_file(&mut self, selected_file: PathBuf) -> InputData {
         let file_contents = std::fs::read_to_string(selected_file);
         InputData::parse_input(file_contents.expect("IO error for file").as_str())
     }
@@ -57,69 +58,7 @@ impl VrpApp {
 
 impl eframe::App for VrpApp {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
-        egui::SidePanel::left("controls")
-            .min_width(200.0)
-            .show(ctx, |ui| {
-                ui.heading("VRPTW Solver");
-                egui::Checkbox::new(&mut self.time_into_account, "Temps pris en compte").ui(ui);
-                ui.separator();
-
-                // sélecteur
-                let selected_text = self.files[self.selected_file_id]
-                    .to_string_lossy()
-                    .into_owned();
-                egui::ComboBox::new("file_selector", "Select a file")
-                    .selected_text(selected_text)
-                    .show_ui(ui, |ui| {
-                        for (i, file) in self.files.iter().enumerate() {
-                            ui.selectable_value(
-                                &mut self.selected_file_id,
-                                i,
-                                file.display().to_string(),
-                            );
-                        }
-                    });
-                if ui.button("Charger").clicked() {
-                    self.algorithm_runner = None;
-                    self.iterations_done = 0;
-                    let selected_file = self.files[self.selected_file_id].clone();
-                    let input_data = self.load_file(selected_file);
-                    self.buffer = format!("{:#?}", input_data);
-                    let problem = Problem::new(input_data);
-                    self.problem = Some(problem.clone());
-                    let solution = Solution::random(
-                        &self
-                            .problem
-                            .clone()
-                            .expect("No problem was submitted before solving"),
-                    );
-                    self.solution = Some(solution.clone());
-                    self.buffer = format!("{:#?}", solution);
-                }
-                if ui.button("Effacer").clicked() {
-                    self.algorithm_runner = None;
-                    self.iterations_done = 0;
-                    self.buffer.clear();
-                    self.problem = None;
-                    self.solution = None;
-                }
-                ui.add_enabled_ui(self.problem.is_some(), |ui| {
-                    if ui.button("Résoudre").clicked() {
-                        let sa_params = SAParams::default();
-                        let pb = self.problem.clone().unwrap();
-                        let current_solution = self.solution.clone().unwrap();
-                        self.algorithm_runner =
-                            Some(AlgorithmRunner::new(pb, current_solution, sa_params));
-                        self.iterations_done = 0;
-                    }
-                });
-
-                ui.label("Iter/frame");
-                ui.add(egui::Slider::new(&mut self.iter_per_frame, 100..=10000).step_by(100.))
-                    .on_hover_text("Nombre d'itérations calculées par frame");
-                ui.label(format!("Itérations totales: {}", self.iterations_done));
-            });
-
+        self.show_sidebar(ctx);
         if let Some(runner) = self.algorithm_runner.as_mut() {
             if let Some(update) = runner.poll_latest_update() {
                 self.solution = Some(update.solution.clone());
@@ -146,13 +85,7 @@ impl eframe::App for VrpApp {
                 });
                 return;
             };
-            // if !self.buffer.is_empty() {
-            //     egui::ScrollArea::vertical()
-            //         .auto_shrink([false, false])
-            //         .show(ui, |ui| {
-            //             ui.label(self.buffer.clone());
-            //         });
-            // }
+
             let rect = ui.available_rect_before_wrap();
             let t = MapTransform::build(problem, rect);
             let painter = ui.painter();

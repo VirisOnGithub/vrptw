@@ -1,4 +1,4 @@
-use rand::{Rng, rngs::ThreadRng};
+use rand::{Rng, SeedableRng, rngs::StdRng};
 
 use crate::{
     neighbouring::generate_neighbor,
@@ -6,6 +6,8 @@ use crate::{
 };
 
 pub trait OptimizationAlgorithm {
+    fn total_iterations(&self) -> usize;
+    fn current_solution(&self) -> &Solution;
     fn step(&mut self, problem: &Problem, nb_steps: usize);
     fn is_finished(&self) -> bool;
 }
@@ -42,12 +44,13 @@ pub struct SimulatedAnnealing {
     params: SAParams,
     temperature: Float,
     total_iterations: usize,
-    rng: ThreadRng,
+    rng: StdRng,
     nb_accepted: usize,
     iter_in_temp: usize,
 }
 
 impl SimulatedAnnealing {
+    /// We have to send a StdRng because Rng is not Send => cannot send it thread-safely
     pub(crate) fn new(problem: &Problem, solution: &Solution, params: SAParams) -> Self {
         let initial_solution = solution.clone();
         let initial_cost = initial_solution.total_distance(problem);
@@ -60,18 +63,18 @@ impl SimulatedAnnealing {
             params,
             temperature: initial_temp,
             total_iterations: 0,
-            rng: rand::thread_rng(),
+            rng: StdRng::from_entropy(),
             nb_accepted: 0,
             iter_in_temp: 0,
         }
     }
-
-    pub fn total_iterations(&self) -> usize {
-        self.total_iterations
-    }
 }
 
 impl OptimizationAlgorithm for SimulatedAnnealing {
+    fn total_iterations(&self) -> usize {
+        self.total_iterations
+    }
+
     fn step(&mut self, problem: &Problem, steps: usize) {
         for _ in 0..steps {
             if self.is_finished() {
@@ -105,5 +108,9 @@ impl OptimizationAlgorithm for SimulatedAnnealing {
 
     fn is_finished(&self) -> bool {
         self.temperature <= self.params.t_final
+    }
+
+    fn current_solution(&self) -> &Solution {
+        &self.current_solution
     }
 }

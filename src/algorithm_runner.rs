@@ -1,7 +1,7 @@
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread::{self, JoinHandle};
 
-use crate::optimizing_algorithm::{OptimizationAlgorithm, SAParams, SimulatedAnnealing};
+use crate::optimizing_algorithm::OptimizationAlgorithm;
 use crate::problem::{Problem, Solution};
 
 enum RunnerCommand {
@@ -26,15 +26,14 @@ pub struct AlgorithmRunner {
 }
 
 impl AlgorithmRunner {
-    /// creates two channels for communication between threads : 
+    /// creates two channels for communication between threads :
     /// RunnerCommand sends data from gui to worker
     /// RunnerUpdate sends data from worker to gui
-    pub fn new(problem: Problem, initial_solution: Solution, params: SAParams) -> Self {
+    pub fn new(mut algo: Box<dyn OptimizationAlgorithm + Send + Sync>, problem: Problem) -> Self {
         let (command_tx, command_rx) = mpsc::channel::<RunnerCommand>();
         let (update_tx, update_rx) = mpsc::channel::<RunnerUpdate>();
 
         let worker_handle = thread::spawn(move || {
-            let mut algo = SimulatedAnnealing::new(&problem, &initial_solution, params);
             while let Ok(command) = command_rx.recv() {
                 match command {
                     RunnerCommand::Step { iterations } => {
@@ -44,7 +43,7 @@ impl AlgorithmRunner {
                         }
                         let after = algo.total_iterations();
                         let update = RunnerUpdate {
-                            solution: algo.current_solution.clone(),
+                            solution: algo.current_solution().clone(),
                             iterations_done: after.saturating_sub(before),
                             total_iterations: after,
                             is_finished: algo.is_finished(),
