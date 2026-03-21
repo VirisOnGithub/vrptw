@@ -4,6 +4,6 @@ mod algorithm_runner;
 mod gui_canvas;
 mod gui_sidebar;
 mod neighbouring;
-mod optimizing_algorithm;
+mod optimizers;
 mod parser;
 mod problem;

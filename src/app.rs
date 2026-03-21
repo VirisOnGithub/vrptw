@@ -1,13 +1,15 @@
 use egui::{Color32, Rect, Stroke, Vec2};
+use std::any::Any;
+use std::path::PathBuf;
 
 use crate::{
     algorithm_runner::AlgorithmRunner,
     gui_canvas::{MapTransform, draw_arrow, route_color},
     gui_sidebar::Sidebar,
+    optimizers::{OptimizerDescriptor, available_optimizers},
     parser::InputData,
     problem::{Problem, Solution},
 };
-use std::path::PathBuf;
 
 pub struct VrpApp {
     pub files: Vec<PathBuf>,
@@ -19,6 +21,9 @@ pub struct VrpApp {
     pub iter_per_frame: usize,
     pub algorithm_runner: Option<AlgorithmRunner>,
     pub iterations_done: usize,
+    pub optimizers: Vec<&'static OptimizerDescriptor>,
+    pub selected_optimizer: usize,
+    pub optimizer_params: Vec<Box<dyn Any + Send + Sync>>,
 }
 
 impl Default for VrpApp {
@@ -30,6 +35,11 @@ impl Default for VrpApp {
 impl VrpApp {
     pub fn new() -> Self {
         let data_dir = "data";
+        let optimizers = available_optimizers();
+        let optimizer_params = optimizers
+            .iter()
+            .map(|descriptor| (descriptor.create_default_params)())
+            .collect();
         let files = std::fs::read_dir(data_dir)
             .into_iter()
             .flatten()
@@ -47,6 +57,9 @@ impl VrpApp {
             iter_per_frame: 5000,
             algorithm_runner: None,
             iterations_done: 0,
+            optimizers,
+            selected_optimizer: 0,
+            optimizer_params,
         }
     }
 

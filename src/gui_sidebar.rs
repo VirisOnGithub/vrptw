@@ -3,7 +3,6 @@ use egui::Widget;
 use crate::{
     VrpApp,
     algorithm_runner::AlgorithmRunner,
-    optimizing_algorithm::{SAParams, SimulatedAnnealing},
     problem::{Problem, Solution},
 };
 
@@ -61,13 +60,20 @@ impl Sidebar for VrpApp {
                 }
                 ui.add_enabled_ui(self.problem.is_some(), |ui| {
                     if ui.button("Résoudre").clicked() {
-                        let sa_params = SAParams::default();
+                        if self.optimizers.is_empty() {
+                            self.buffer =
+                                "Aucun algorithme n'est enregistré dans le registre".to_string();
+                            return;
+                        }
+
                         let pb = self.problem.clone().unwrap();
                         let current_solution = self.solution.clone().unwrap();
-                        self.algorithm_runner = Some(AlgorithmRunner::new(
-                            Box::new(SimulatedAnnealing::new(&pb, &current_solution, sa_params)),
-                            pb,
-                        ));
+                        let descriptor = self.optimizers[self.selected_optimizer];
+                        let params = &self.optimizer_params[self.selected_optimizer];
+                        let algo =
+                            (descriptor.build_algorithm)(&pb, &current_solution, params.as_ref());
+
+                        self.algorithm_runner = Some(AlgorithmRunner::new(algo, pb));
                         self.iterations_done = 0;
                     }
                 });
@@ -78,6 +84,36 @@ impl Sidebar for VrpApp {
                 ui.label(format!("Itérations totales: {}", self.iterations_done));
 
                 ui.separator();
+
+                self.show_algorithm_parameters(ui);
             });
+    }
+}
+
+impl VrpApp {
+    fn show_algorithm_parameters(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Algorithme");
+
+        if self.optimizers.is_empty() {
+            ui.label("Aucun algorithme disponible");
+            return;
+        }
+
+        if self.selected_optimizer >= self.optimizers.len() {
+            self.selected_optimizer = 0;
+        }
+
+        let selected_text = self.optimizers[self.selected_optimizer].label;
+        egui::ComboBox::new("optimizer_selector", "Choix de l'algorithme")
+            .selected_text(selected_text)
+            .show_ui(ui, |ui| {
+                for (i, optimizer) in self.optimizers.iter().enumerate() {
+                    ui.selectable_value(&mut self.selected_optimizer, i, optimizer.label);
+                }
+            });
+
+        let descriptor = self.optimizers[self.selected_optimizer];
+        let params = &mut self.optimizer_params[self.selected_optimizer];
+        (descriptor.draw_params_ui)(params.as_mut(), ui);
     }
 }

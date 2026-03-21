@@ -1,3 +1,6 @@
+use std::any::Any;
+
+use crate::optimizers::{OptimizationAlgorithm, OptimizerDescriptor};
 use rand::{Rng, SeedableRng, rngs::StdRng};
 
 use crate::{
@@ -5,14 +8,7 @@ use crate::{
     problem::{Float, Problem, Solution},
 };
 
-pub trait OptimizationAlgorithm {
-    fn total_iterations(&self) -> usize;
-    fn current_solution(&self) -> &Solution;
-    fn step(&mut self, problem: &Problem, nb_steps: usize);
-    fn is_finished(&self) -> bool;
-}
-
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SAParams {
     pub t_initial: f64,
     pub t_final: f64,
@@ -112,5 +108,54 @@ impl OptimizationAlgorithm for SimulatedAnnealing {
 
     fn current_solution(&self) -> &Solution {
         &self.current_solution
+    }
+}
+
+fn create_default_params() -> Box<dyn Any + Send + Sync> {
+    Box::new(SAParams::default())
+}
+
+fn draw_params_ui(params: &mut dyn Any, ui: &mut egui::Ui) {
+    let params = params
+        .downcast_mut::<SAParams>()
+        .expect("Invalid SA params type in optimizer registry");
+
+    ui.label("Température initiale");
+    ui.add(egui::DragValue::new(&mut params.t_initial).speed(1.0));
+    ui.label("Température finale");
+    ui.add(egui::DragValue::new(&mut params.t_final).speed(0.1));
+    ui.label("Facteur de refroidissement (alpha)");
+    ui.add(
+        egui::DragValue::new(&mut params.alpha)
+            .speed(0.001)
+            .range(0.0..=1.0),
+    );
+    ui.label("Itérations par température");
+    ui.add(
+        egui::DragValue::new(&mut params.iter_per_temp)
+            .speed(10.0)
+            .range(1..=10000),
+    );
+}
+
+fn build_algorithm(
+    problem: &Problem,
+    solution: &Solution,
+    params: &dyn Any,
+) -> Box<dyn OptimizationAlgorithm + Send + Sync> {
+    let params = params
+        .downcast_ref::<SAParams>()
+        .expect("Invalid SA params type in optimizer registry");
+
+    Box::new(SimulatedAnnealing::new(problem, solution, params.clone()))
+}
+
+inventory::submit! {
+    OptimizerDescriptor {
+        id: "simulated_annealing",
+        label: "Recuit simulé",
+        create_default_params,
+        draw_params_ui,
+        build_algorithm,
     }
 }

@@ -1,7 +1,7 @@
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread::{self, JoinHandle};
 
-use crate::optimizing_algorithm::OptimizationAlgorithm;
+use crate::optimizers::OptimizationAlgorithm;
 use crate::problem::{Problem, Solution};
 
 enum RunnerCommand {
