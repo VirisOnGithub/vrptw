@@ -1,7 +1,7 @@
-pub type INT = u32;
+pub type Int = u32;
 
 pub trait Localizable {
-    fn coords(&self) -> (INT, INT);
+    fn coords(&self) -> (Int, Int);
     fn id(&self) -> &str;
 }
 
@@ -10,9 +10,9 @@ pub struct InputData {
     pub name: String,
     pub graph_type: String,
     pub coordinates_type: String,
-    pub repositories_nb: INT,
-    pub clients_nb: INT,
-    pub max_quantity: INT,
+    pub repositories_nb: Int,
+    pub clients_nb: Int,
+    pub max_quantity: Int,
     pub repositories: Vec<Repository>,
     pub clients: Vec<Client>,
 }
@@ -20,14 +20,14 @@ pub struct InputData {
 #[derive(Debug, Clone)]
 pub struct Repository {
     pub id: String,
-    pub x: INT,
-    pub y: INT,
-    pub read_time: INT,
-    pub due_time: INT,
+    pub x: Int,
+    pub y: Int,
+    pub read_time: Int,
+    pub due_time: Int,
 }
 
 impl Localizable for Repository {
-    fn coords(&self) -> (INT, INT) {
+    fn coords(&self) -> (Int, Int) {
         (self.x, self.y)
     }
 
@@ -39,16 +39,16 @@ impl Localizable for Repository {
 #[derive(Debug, Clone)]
 pub struct Client {
     pub id: String,
-    pub x: INT,
-    pub y: INT,
-    pub ready_time: INT,
-    pub due_time: INT,
-    pub demand: INT,
-    pub service: INT,
+    pub x: Int,
+    pub y: Int,
+    pub ready_time: Int,
+    pub due_time: Int,
+    pub demand: Int,
+    pub service: Int,
 }
 
 impl Localizable for Client {
-    fn coords(&self) -> (INT, INT) {
+    fn coords(&self) -> (Int, Int) {
         (self.x, self.y)
     }
 
@@ -69,9 +69,9 @@ impl InputData {
         name: String,
         graph_type: String,
         coordinates_type: String,
-        repositories_nb: INT,
-        clients_nb: INT,
-        max_quantity: INT,
+        repositories_nb: Int,
+        clients_nb: Int,
+        max_quantity: Int,
         repositories: Vec<Repository>,
         clients: Vec<Client>,
     ) -> Self {
@@ -91,9 +91,9 @@ impl InputData {
         let mut name = String::new();
         let mut graph_type = String::new();
         let mut coordinates_type = String::new();
-        let mut repositories_nb: INT = 0;
-        let mut clients_nb: INT = 0;
-        let mut max_quantity: INT = 0;
+        let mut repositories_nb: Int = 0;
+        let mut clients_nb: Int = 0;
+        let mut max_quantity: Int = 0;
         let mut repositories: Vec<Repository> = Vec::new();
         let mut clients: Vec<Client> = Vec::new();
 

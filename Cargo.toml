@@ -6,4 +6,5 @@ edition = "2024"
 [dependencies]
 eframe = "0.28"
 egui = "0.28"
+inventory = "0.3.22"
 rand = "0.8"

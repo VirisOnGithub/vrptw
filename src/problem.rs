@@ -1,13 +1,13 @@
-use crate::parser::{Client, INT, InputData, Localizable, Repository};
+use crate::parser::{Client, InputData, Int, Localizable, Repository};
 use rand::prelude::SliceRandom;
 
-pub type FLOAT = f64;
+pub type Float = f64;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Problem {
-    clients: Vec<Client>,
-    repo: Repository,
-    max_capacity: INT,
+    pub clients: Vec<Client>,
+    pub(crate) repo: Repository,
+    pub max_capacity: Int,
 }
 
 impl Problem {
@@ -27,10 +27,10 @@ impl Problem {
 
     #[inline]
     /// Computes the Euclidean distance between two Localizable objects (Client or Repository)
-    pub fn dist(client1: &impl Localizable, client2: &impl Localizable) -> FLOAT {
+    pub fn dist(client1: &impl Localizable, client2: &impl Localizable) -> Float {
         let (x1, y1) = client1.coords();
         let (x2, y2) = client2.coords();
-        (((x1 - x2).pow(2) + (y1 - y2).pow(2)) as f64).sqrt() as FLOAT
+        (((x1 - x2).pow(2) + (y1 - y2).pow(2)) as f64).sqrt() as Float
     }
 
     pub fn route_distance(&self, route: &[usize]) -> f64 {
@@ -54,7 +54,7 @@ impl Problem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Solution {
     pub routes: Vec<Vec<usize>>, // each route is a Vec of client indices
 }
@@ -85,9 +85,13 @@ impl Solution {
             } else {
                 // else, publish the current route, start a new one
                 routes.push(current_route);
-                current_route = Vec::new();
+                current_route = vec![i];
                 current_capacity = max_capacity_random - demand as f64;
             }
+        }
+
+        if !current_route.is_empty() {
+            routes.push(current_route);
         }
 
         Self { routes }
