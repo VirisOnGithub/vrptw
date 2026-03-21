@@ -30,7 +30,7 @@ impl Problem {
     pub fn dist(client1: &impl Localizable, client2: &impl Localizable) -> Float {
         let (x1, y1) = client1.coords();
         let (x2, y2) = client2.coords();
-        (((x1 - x2).pow(2) + (y1 - y2).pow(2)) as f64).sqrt() as Float
+        (((x1 as i64 - x2 as i64).pow(2) + (y1 as i64 - y2 as i64).pow(2)) as f64).sqrt() as Float
     }
 
     pub fn route_distance(&self, route: &[usize]) -> f64 {
@@ -51,6 +51,10 @@ impl Problem {
 
         d += Problem::dist(last, &self.repo); // from the last client to the repo
         d
+    }
+
+    pub fn route_demand(&self, route: &[usize]) -> u32 {
+        route.iter().map(|&i| self.clients[i].demand).sum()
     }
 }
 

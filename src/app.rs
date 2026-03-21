@@ -1,5 +1,6 @@
 use crate::{
     gui_canvas::{MapTransform, draw_arrow, route_color},
+    optimizing_algorithm::{OptimizationAlgorithm, SAParams, SimulatedAnnealing},
     parser::InputData,
     problem::{Problem, Solution},
 };
@@ -91,7 +92,21 @@ impl eframe::App for VrpApp {
                     self.problem = None;
                     self.solution = None;
                 }
-                // ui.add_enabled_ui(self.problem.is_some(), |ui| {})
+                ui.add_enabled_ui(self.problem.is_some(), |ui| {
+                    if ui.button("Résoudre").clicked() {
+                        let sa_params = SAParams::default();
+                        let pb = &self.problem.clone().unwrap();
+                        let current_solution = &self.solution.clone().unwrap();
+                        println!("Problem constructed");
+                        let mut sa_sol = SimulatedAnnealing::new(pb, current_solution, sa_params);
+                        println!("Solver constructed");
+                        while !sa_sol.is_finished() {
+                            sa_sol.step(pb, 1);
+                            self.solution = Some(sa_sol.current_solution.clone());
+                            self.buffer = format!("{:#?}", sa_sol.current_solution);
+                        }
+                    }
+                })
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {

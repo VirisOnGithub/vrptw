@@ -10,6 +10,7 @@ pub trait OptimizationAlgorithm {
     fn is_finished(&self) -> bool;
 }
 
+#[derive(Debug)]
 pub struct SAParams {
     pub t_initial: f64,
     pub t_final: f64,
@@ -47,8 +48,8 @@ pub struct SimulatedAnnealing {
 }
 
 impl SimulatedAnnealing {
-    pub(crate) fn new(problem: &Problem, params: SAParams) -> Self {
-        let initial_solution = Solution::random(problem);
+    pub(crate) fn new(problem: &Problem, solution: &Solution, params: SAParams) -> Self {
+        let initial_solution = solution.clone();
         let initial_cost = initial_solution.total_distance(problem);
         let initial_temp = params.t_initial;
         Self {

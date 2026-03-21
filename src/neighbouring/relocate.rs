@@ -3,6 +3,7 @@ use crate::{
     neighbouring::NeighbouringFactory,
     problem::{Problem, Solution},
 };
+use rand::{Rng, prelude::SliceRandom};
 
 struct RelocateNeighbouring;
 
@@ -13,7 +14,39 @@ impl Neighbouring for RelocateNeighbouring {
         problem: &Problem,
         rng: &mut dyn rand::RngCore,
     ) -> Solution {
-        todo!()
+        let sol = current_solution.clone();
+        let non_empty: Vec<usize> = sol
+            .routes
+            .iter()
+            .enumerate()
+            .filter(|(_, r)| !r.is_empty())
+            .map(|(i, _)| i)
+            .collect();
+
+        if non_empty.len() < 2 {
+            return sol.clone();
+        }
+
+        let &from = non_empty.choose(rng).unwrap();
+        let pos_from = rng.gen_range(0..sol.routes[from].len());
+        let client = sol.routes[from][pos_from];
+
+        let to_candidates: Vec<usize> = non_empty.iter().filter(|&&i| i != from).cloned().collect();
+        let &to = to_candidates.choose(rng).unwrap();
+
+        // capacity check
+        let demand: u32 = problem.route_demand(&sol.routes[to]) + problem.clients[client].demand;
+        if demand > problem.max_capacity {
+            return sol.clone();
+        }
+
+        let pos_to = rng.gen_range(0..=sol.routes[to].len());
+        let mut new_routes = sol.routes.clone();
+        new_routes[from].remove(pos_from);
+        new_routes[to].insert(pos_to, client);
+        new_routes.retain(|r| !r.is_empty());
+
+        Solution { routes: new_routes }
     }
 }
 
