@@ -17,6 +17,7 @@ impl Sidebar for VrpApp {
             .show(ctx, |ui| {
                 ui.heading("VRPTW Solver");
                 egui::Checkbox::new(&mut self.time_into_account, "Temps pris en compte").ui(ui);
+                egui::Checkbox::new(&mut self.show_steps, "Afficher les étapes").ui(ui);
                 ui.separator();
 
                 // sélecteur
@@ -35,8 +36,7 @@ impl Sidebar for VrpApp {
                         }
                     });
                 if ui.button("Charger").clicked() {
-                    self.algorithm_runner = None;
-                    self.iterations_done = 0;
+                    self.reset();
                     let selected_file = self.files[self.selected_file_id].clone();
                     let input_data = self.load_file(selected_file);
                     self.buffer = format!("{:#?}", input_data);
@@ -50,16 +50,14 @@ impl Sidebar for VrpApp {
                     );
                     self.solution = Some(solution.clone());
                     self.buffer = format!("{:#?}", solution);
+                    self.is_random_solution = true;
                 }
                 if ui.button("Effacer").clicked() {
-                    self.algorithm_runner = None;
-                    self.iterations_done = 0;
-                    self.buffer.clear();
-                    self.problem = None;
-                    self.solution = None;
+                    self.reset();
                 }
                 ui.add_enabled_ui(self.problem.is_some(), |ui| {
                     if ui.button("Résoudre").clicked() {
+                        self.starting_time = Some(std::time::Instant::now());
                         if self.optimizers.is_empty() {
                             self.buffer =
                                 "Aucun algorithme n'est enregistré dans le registre".to_string();
@@ -82,6 +80,16 @@ impl Sidebar for VrpApp {
                 ui.add(egui::Slider::new(&mut self.iter_per_frame, 100..=10000).step_by(100.))
                     .on_hover_text("Nombre d'itérations calculées par frame");
                 ui.label(format!("Itérations totales: {}", self.iterations_done));
+
+                if let Some(last_optimization_time) = self.last_optimization_time {
+                    ui.label(format!(
+                        "Temps écoulé: {:.2}s",
+                        last_optimization_time.as_secs_f32()
+                    ));
+                } else if let Some(start) = self.starting_time {
+                    let elapsed = start.elapsed();
+                    ui.label(format!("Temps écoulé: {:.2}s", elapsed.as_secs_f32()));
+                }
 
                 ui.separator();
 
@@ -115,5 +123,16 @@ impl VrpApp {
         let descriptor = self.optimizers[self.selected_optimizer];
         let params = &mut self.optimizer_params[self.selected_optimizer];
         (descriptor.draw_params_ui)(params.as_mut(), ui);
+    }
+
+    fn reset(&mut self) {
+        self.algorithm_runner = None;
+        self.iterations_done = 0;
+        self.buffer.clear();
+        self.problem = None;
+        self.solution = None;
+        self.is_random_solution = false;
+        self.starting_time = None;
+        self.last_optimization_time = None;
     }
 }

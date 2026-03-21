@@ -24,6 +24,10 @@ pub struct VrpApp {
     pub optimizers: Vec<&'static OptimizerDescriptor>,
     pub selected_optimizer: usize,
     pub optimizer_params: Vec<Box<dyn Any + Send + Sync>>,
+    pub(crate) show_steps: bool,
+    pub is_random_solution: bool,
+    pub starting_time: Option<std::time::Instant>,
+    pub last_optimization_time: Option<std::time::Duration>,
 }
 
 impl Default for VrpApp {
@@ -60,6 +64,10 @@ impl VrpApp {
             optimizers,
             selected_optimizer: 0,
             optimizer_params,
+            show_steps: true,
+            is_random_solution: false,
+            starting_time: None,
+            last_optimization_time: None,
         }
     }
 
@@ -73,7 +81,10 @@ impl eframe::App for VrpApp {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         self.show_sidebar(ctx);
         if let Some(runner) = self.algorithm_runner.as_mut() {
+            self.is_random_solution = false;
+            let mut has_modification = false;
             if let Some(update) = runner.poll_latest_update() {
+                has_modification = true;
                 self.solution = Some(update.solution.clone());
                 self.iterations_done = update.total_iterations;
                 self.buffer = format!(
@@ -82,8 +93,19 @@ impl eframe::App for VrpApp {
                 );
             }
             if !runner.is_finished() {
-                runner.request_step(self.iter_per_frame);
+                runner.request_step(if self.show_steps {
+                    self.iter_per_frame
+                } else {
+                    usize::MAX
+                });
                 ctx.request_repaint();
+            }
+
+            if runner.is_finished() && has_modification {
+                self.last_optimization_time = self
+                    .starting_time
+                    .map(|start| start.elapsed())
+                    .or(self.last_optimization_time);
             }
         }
 
@@ -98,6 +120,17 @@ impl eframe::App for VrpApp {
                 });
                 return;
             };
+
+            // if no show step, show a spinner
+            // we need : no show step + no iteration done (on the ui) + it is not the first render
+            if !self.show_steps && self.iterations_done == 0 && !self.is_random_solution {
+                let elapsed = self
+                    .starting_time
+                    .map(|start| start.elapsed())
+                    .unwrap_or_default();
+                ui.centered_and_justified(|ui| ui.spinner());
+                return;
+            }
 
             let rect = ui.available_rect_before_wrap();
             let t = MapTransform::build(problem, rect);
