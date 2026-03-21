@@ -1,6 +1,7 @@
 use crate::{
+    algorithm_runner::AlgorithmRunner,
     gui_canvas::{MapTransform, draw_arrow, route_color},
-    optimizing_algorithm::{OptimizationAlgorithm, SAParams, SimulatedAnnealing},
+    optimizing_algorithm::SAParams,
     parser::InputData,
     problem::{Problem, Solution},
 };
@@ -14,6 +15,9 @@ pub struct VrpApp {
     pub buffer: String,
     pub problem: Option<Problem>,
     pub solution: Option<Solution>,
+    pub iter_per_frame: usize,
+    pub algorithm_runner: Option<AlgorithmRunner>,
+    pub iterations_done: usize,
 }
 
 impl Default for VrpApp {
@@ -39,6 +43,9 @@ impl VrpApp {
             buffer: String::new(),
             problem: None,
             solution: None,
+            iter_per_frame: 100,
+            algorithm_runner: None,
+            iterations_done: 0,
         }
     }
 
@@ -73,6 +80,8 @@ impl eframe::App for VrpApp {
                         }
                     });
                 if ui.button("Charger").clicked() {
+                    self.algorithm_runner = None;
+                    self.iterations_done = 0;
                     let selected_file = self.files[self.selected_file_id].clone();
                     let input_data = self.load_file(selected_file);
                     self.buffer = format!("{:#?}", input_data);
@@ -88,6 +97,8 @@ impl eframe::App for VrpApp {
                     self.buffer = format!("{:#?}", solution);
                 }
                 if ui.button("Effacer").clicked() {
+                    self.algorithm_runner = None;
+                    self.iterations_done = 0;
                     self.buffer.clear();
                     self.problem = None;
                     self.solution = None;
@@ -95,19 +106,34 @@ impl eframe::App for VrpApp {
                 ui.add_enabled_ui(self.problem.is_some(), |ui| {
                     if ui.button("Résoudre").clicked() {
                         let sa_params = SAParams::default();
-                        let pb = &self.problem.clone().unwrap();
-                        let current_solution = &self.solution.clone().unwrap();
-                        println!("Problem constructed");
-                        let mut sa_sol = SimulatedAnnealing::new(pb, current_solution, sa_params);
-                        println!("Solver constructed");
-                        while !sa_sol.is_finished() {
-                            sa_sol.step(pb, 1);
-                            self.solution = Some(sa_sol.current_solution.clone());
-                            self.buffer = format!("{:#?}", sa_sol.current_solution);
-                        }
+                        let pb = self.problem.clone().unwrap();
+                        let current_solution = self.solution.clone().unwrap();
+                        self.algorithm_runner =
+                            Some(AlgorithmRunner::new(pb, current_solution, sa_params));
+                        self.iterations_done = 0;
                     }
-                })
+                });
+
+                ui.label("Iter/frame");
+                ui.add(egui::Slider::new(&mut self.iter_per_frame, 100..=10000).step_by(100.))
+                    .on_hover_text("Nombre d'itérations calculées par frame");
+                ui.label(format!("Itérations totales: {}", self.iterations_done));
             });
+
+        if let Some(runner) = self.algorithm_runner.as_mut() {
+            if let Some(update) = runner.poll_latest_update() {
+                self.solution = Some(update.solution.clone());
+                self.iterations_done = update.total_iterations;
+                self.buffer = format!(
+                    "it/frame done: {}\nitérations totales: {}\n{:#?}",
+                    update.iterations_done, update.total_iterations, update.solution
+                );
+            }
+            if !runner.is_finished() {
+                runner.request_step(self.iter_per_frame);
+                ctx.request_repaint();
+            }
+        }
 
         egui::CentralPanel::default().show(ctx, |ui| {
             let Some(problem) = &self.problem else {

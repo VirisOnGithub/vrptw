@@ -65,6 +65,10 @@ impl SimulatedAnnealing {
             iter_in_temp: 0,
         }
     }
+
+    pub fn total_iterations(&self) -> usize {
+        self.total_iterations
+    }
 }
 
 impl OptimizationAlgorithm for SimulatedAnnealing {
