@@ -124,7 +124,7 @@ impl eframe::App for VrpApp {
             // if no show step, show a spinner
             // we need : no show step + no iteration done (on the ui) + it is not the first render
             if !self.show_steps && self.iterations_done == 0 && !self.is_random_solution {
-                let elapsed = self
+                let _elapsed = self
                     .starting_time
                     .map(|start| start.elapsed())
                     .unwrap_or_default();

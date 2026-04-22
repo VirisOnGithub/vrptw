@@ -42,12 +42,7 @@ impl Sidebar for VrpApp {
                     self.buffer = format!("{:#?}", input_data);
                     let problem = Problem::new(input_data);
                     self.problem = Some(problem.clone());
-                    let solution = Solution::random(
-                        &self
-                            .problem
-                            .clone()
-                            .expect("No problem was submitted before solving"),
-                    );
+                    let solution = Solution::simplest(&problem);
                     self.solution = Some(solution.clone());
                     self.buffer = format!("{:#?}", solution);
                     self.is_random_solution = true;
@@ -89,6 +84,22 @@ impl Sidebar for VrpApp {
                 } else if let Some(start) = self.starting_time {
                     let elapsed = start.elapsed();
                     ui.label(format!("Temps écoulé: {:.2}s", elapsed.as_secs_f32()));
+                }
+
+                // Affichage des résultats finaux
+                if let (Some(solution), Some(problem)) = (&self.solution, &self.problem) {
+                    ui.separator();
+                    ui.heading("Résultats");
+
+                    let num_trucks = solution
+                        .routes
+                        .iter()
+                        .filter(|route| !route.is_empty())
+                        .count();
+                    ui.label(format!("Camions utilisés: {}", num_trucks));
+
+                    let total_score = solution.total_distance(problem);
+                    ui.label(format!("Score total (distance): {:.2}", total_score));
                 }
 
                 ui.separator();

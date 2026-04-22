@@ -100,4 +100,15 @@ impl Solution {
 
         Self { routes }
     }
+
+    pub fn simplest(problem: &Problem) -> Self {
+        Self {
+            routes: problem
+                .clients
+                .iter()
+                .enumerate()
+                .map(|r| vec![r.0])
+                .collect(),
+        }
+    }
 }
