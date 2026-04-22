@@ -135,7 +135,7 @@ impl InputData {
                 Section::Depots => {
                     // Format: idName x y readyTime dueTime
                     let parts: Vec<&str> = line.split_whitespace().collect();
-                    if parts.len() >= 3 {
+                    if parts.len() >= 5 {
                         repositories.push(Repository {
                             id: parts[0].to_string(),
                             x: parts[1].parse().unwrap_or(0),
@@ -148,7 +148,7 @@ impl InputData {
                 Section::Clients => {
                     // Format: idName x y readyTime dueTime demand service
                     let parts: Vec<&str> = line.split_whitespace().collect();
-                    if parts.len() >= 6 {
+                    if parts.len() >= 7 {
                         clients.push(Client {
                             id: parts[0].to_string(),
                             x: parts[1].parse().unwrap_or(0),

@@ -129,7 +129,14 @@ impl Solution {
                     return false;
                 }
                 min_time = min_time.max(client.ready_time as Float);
+                min_time += client.service as Float;
                 latest_localizable = client;
+            }
+
+            // Return to depot must also satisfy the depot due time.
+            min_time += Problem::dist(latest_localizable, &problem.repo);
+            if min_time > problem.repo.due_time as Float {
+                return false;
             }
         }
         true

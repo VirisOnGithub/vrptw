@@ -41,11 +41,13 @@ impl Neighbouring for RelocateNeighbouring {
             return sol.clone();
         }
 
+        let pos_to = rng.gen_range(0..=sol.routes[to].len());
+
         // time check
         if time_into_account {
             let mut new_routes = sol.routes.clone();
             new_routes[from].remove(pos_from);
-            new_routes[to].insert(0, client); // insert at the beginning to check time feasibility
+            new_routes[to].insert(pos_to, client);
             new_routes.retain(|r| !r.is_empty());
             let new_solution = Solution { routes: new_routes };
             if !new_solution.is_feasible(problem) {
@@ -53,7 +55,6 @@ impl Neighbouring for RelocateNeighbouring {
             }
         }
 
-        let pos_to = rng.gen_range(0..=sol.routes[to].len());
         let mut new_routes = sol.routes.clone();
         new_routes[from].remove(pos_from);
         new_routes[to].insert(pos_to, client);
