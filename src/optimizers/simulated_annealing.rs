@@ -43,11 +43,17 @@ pub struct SimulatedAnnealing {
     rng: StdRng,
     nb_accepted: usize,
     iter_in_temp: usize,
+    time_into_account: bool,
 }
 
 impl SimulatedAnnealing {
     /// We have to send a StdRng because Rng is not Send => cannot send it thread-safely
-    pub(crate) fn new(problem: &Problem, solution: &Solution, params: SAParams) -> Self {
+    pub(crate) fn new(
+        problem: &Problem,
+        solution: &Solution,
+        params: SAParams,
+        time_into_account: bool,
+    ) -> Self {
         let initial_solution = solution.clone();
         let initial_cost = initial_solution.total_distance(problem);
         let initial_temp = params.t_initial;
@@ -62,6 +68,7 @@ impl SimulatedAnnealing {
             rng: StdRng::from_entropy(),
             nb_accepted: 0,
             iter_in_temp: 0,
+            time_into_account,
         }
     }
 }
@@ -77,7 +84,12 @@ impl OptimizationAlgorithm for SimulatedAnnealing {
                 return;
             }
 
-            let candidate = generate_neighbor(&self.current_solution, problem, &mut self.rng);
+            let candidate = generate_neighbor(
+                &self.current_solution,
+                problem,
+                &mut self.rng,
+                self.time_into_account,
+            );
             let candidate_cost = candidate.total_distance(problem);
             let delta = candidate_cost - self.current_cost;
 
@@ -142,12 +154,18 @@ fn build_algorithm(
     problem: &Problem,
     solution: &Solution,
     params: &dyn Any,
+    time_into_account: bool,
 ) -> Box<dyn OptimizationAlgorithm + Send + Sync> {
     let params = params
         .downcast_ref::<SAParams>()
         .expect("Invalid SA params type in optimizer registry");
 
-    Box::new(SimulatedAnnealing::new(problem, solution, params.clone()))
+    Box::new(SimulatedAnnealing::new(
+        problem,
+        solution,
+        params.clone(),
+        time_into_account,
+    ))
 }
 
 inventory::submit! {

@@ -20,6 +20,7 @@ pub struct OptimizerDescriptor {
         problem: &Problem,
         solution: &Solution,
         params: &dyn Any,
+        time_into_account: bool,
     ) -> Box<dyn OptimizationAlgorithm + Send + Sync>,
 }
 

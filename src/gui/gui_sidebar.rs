@@ -63,8 +63,12 @@ impl Sidebar for VrpApp {
                         let current_solution = self.solution.clone().unwrap();
                         let descriptor = self.optimizers[self.selected_optimizer];
                         let params = &self.optimizer_params[self.selected_optimizer];
-                        let algo =
-                            (descriptor.build_algorithm)(&pb, &current_solution, params.as_ref());
+                        let algo = (descriptor.build_algorithm)(
+                            &pb,
+                            &current_solution,
+                            params.as_ref(),
+                            self.time_into_account,
+                        );
 
                         self.algorithm_runner = Some(AlgorithmRunner::new(algo, pb));
                         self.iterations_done = 0;

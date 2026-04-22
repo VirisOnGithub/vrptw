@@ -22,7 +22,7 @@ pub struct Repository {
     pub id: String,
     pub x: Int,
     pub y: Int,
-    pub read_time: Int,
+    pub ready_time: Int,
     pub due_time: Int,
 }
 
@@ -140,7 +140,7 @@ impl InputData {
                             id: parts[0].to_string(),
                             x: parts[1].parse().unwrap_or(0),
                             y: parts[2].parse().unwrap_or(0),
-                            read_time: parts[3].parse().unwrap_or(0),
+                            ready_time: parts[3].parse().unwrap_or(0),
                             due_time: parts[4].parse().unwrap_or(0),
                         });
                     }

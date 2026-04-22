@@ -14,6 +14,7 @@ impl Neighbouring for TwoOptNeighbouring {
         current_solution: &Solution,
         _problem: &Problem,
         rng: &mut dyn rand::RngCore,
+        time_into_account: bool,
     ) -> Solution {
         let sol = current_solution.clone();
         let long_routes: Vec<usize> = sol
@@ -35,6 +36,18 @@ impl Neighbouring for TwoOptNeighbouring {
 
         let mut new_routes = sol.routes.clone();
         new_routes[ri][i..=j].reverse();
+
+        // capacity stays the same (the truck have the same item)
+
+        // time check
+        if time_into_account {
+            let new_sol = Solution {
+                routes: new_routes.clone(),
+            };
+            if !new_sol.is_feasible(_problem) {
+                return sol;
+            }
+        }
 
         Solution { routes: new_routes }
     }

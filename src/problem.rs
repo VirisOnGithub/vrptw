@@ -27,7 +27,7 @@ impl Problem {
 
     #[inline]
     /// Computes the Euclidean distance between two Localizable objects (Client or Repository)
-    pub fn dist(client1: &impl Localizable, client2: &impl Localizable) -> Float {
+    pub fn dist(client1: &dyn Localizable, client2: &dyn Localizable) -> Float {
         let (x1, y1) = client1.coords();
         let (x2, y2) = client2.coords();
         (((x1 as i64 - x2 as i64).pow(2) + (y1 as i64 - y2 as i64).pow(2)) as f64).sqrt() as Float
@@ -110,5 +110,28 @@ impl Solution {
                 .map(|r| vec![r.0])
                 .collect(),
         }
+    }
+
+    /// Checks at the same time the capacity and time feasibility of the solution.
+    pub fn is_feasible(&self, problem: &Problem) -> bool {
+        for route in &self.routes {
+            let demand = problem.route_demand(route);
+            if demand > problem.max_capacity {
+                return false;
+            }
+            let mut min_time = problem.repo.ready_time as Float;
+            let mut latest_localizable: &dyn Localizable = &problem.repo;
+            for &client_idx in route {
+                let client = &problem.clients[client_idx];
+                let travel_time = Problem::dist(latest_localizable, client);
+                min_time += travel_time;
+                if min_time > client.due_time as Float {
+                    return false;
+                }
+                min_time = min_time.max(client.ready_time as Float);
+                latest_localizable = client;
+            }
+        }
+        true
     }
 }
