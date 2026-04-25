@@ -132,6 +132,7 @@ fn draw_params_ui(params: &mut dyn Any, ui: &mut egui::Ui) {
         .downcast_mut::<SAParams>()
         .expect("Invalid SA params type in optimizer registry");
 
+    // ui.add(egui::Slider::new(&mut params.max_iterations, 50..=2000).text("Itérations"));
     ui.label("Température initiale");
     ui.add(egui::DragValue::new(&mut params.t_initial).speed(1.0));
     ui.label("Température finale");
