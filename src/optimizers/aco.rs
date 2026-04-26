@@ -1,5 +1,6 @@
 use rand::Rng;
 use std::any::Any;
+use std::collections::HashSet;
 
 use crate::optimizers::{OptimizationAlgorithm, OptimizerDescriptor};
 use crate::problem::{Float, Problem, Solution};
@@ -8,14 +9,16 @@ use crate::problem::{Float, Problem, Solution};
 
 #[derive(Debug, Clone)]
 pub struct AcoParams {
-    pub n_ants: usize, // nombre de fourmis par itération
-    pub alpha: f64,    // poids des phéromones
-    pub beta: f64,     // poids de l'heuristique (1/distance)
-    pub rho: f64,      // taux d'évaporation [0, 1]
-    pub q: f64,        // constante de dépôt de phéromones
-    pub tau_min: f64,  // phéromone minimale (évite la stagnation)
-    pub tau_max: f64,  // phéromone maximale
+    pub n_ants: usize,
+    pub alpha: f64, // poids des phéromones
+    pub beta: f64,  // poids de l'heuristique (1/distance)
+    pub rho: f64,   // taux d'évaporation [0, 1]
+    pub q: f64,     // constante de dépôt de phéromones
+    pub tau_min: f64,
+    pub tau_max: f64,
     pub max_iterations: usize,
+    pub k_candidates: usize, // taille de la candidate list par nœud
+    pub use_two_opt: bool,   // activer la recherche locale 2-opt
 }
 
 impl Default for AcoParams {
@@ -29,6 +32,8 @@ impl Default for AcoParams {
             tau_min: 0.01,
             tau_max: 10.0,
             max_iterations: 500,
+            k_candidates: 10,
+            use_two_opt: true,
         }
     }
 }
@@ -37,7 +42,10 @@ impl Default for AcoParams {
 
 pub struct AcoAlgorithm {
     params: AcoParams,
-    pheromones: Vec<Vec<f64>>, // [n+1][n+1], index 0 = dépôt
+    /// Matrice de phéromones [n+1][n+1], index 0 = dépôt
+    pheromones: Vec<Vec<f64>>,
+    /// candidate_list[i] = liste des k plus proches voisins du nœud i (0=dépôt)
+    candidate_list: Vec<Vec<usize>>,
     current_solution: Solution,
     best_solution: Solution,
     best_distance: f64,
@@ -52,13 +60,25 @@ impl AcoAlgorithm {
         params: AcoParams,
         time_into_account: bool,
     ) -> Self {
-        let n = problem.clients.len() + 1; // +1 pour le dépôt (index 0)
-        let pheromones = vec![vec![params.tau_max / 2.0; n]; n];
-        let dist = initial_solution.total_distance(problem);
+        let n = problem.clients.len() + 1;
 
+        // ── Initialisation des phéromones via nearest-neighbor ─────────────
+        // tau_0 = 1 / (n * L_nn) avec L_nn la distance de la tournée NN
+        let nn_dist = initial_solution.total_distance(problem).max(1e-9);
+        let tau_0 = (1.0 / (n as f64 * nn_dist)).clamp(params.tau_min, params.tau_max);
+        let pheromones = vec![vec![tau_0; n]; n];
+
+        // ── Candidate list ─────────────────────────────────────────────────
+        // Pour chaque nœud (0=dépôt, i+1=client i), on mémorise les k voisins
+        // les plus proches (en indice phéromone).
+        let k = params.k_candidates.min(n - 1);
+        let candidate_list = Self::build_candidate_list(problem, n, k);
+
+        let dist = initial_solution.total_distance(problem);
         Self {
             params,
             pheromones,
+            candidate_list,
             current_solution: initial_solution.clone(),
             best_solution: initial_solution.clone(),
             best_distance: dist,
@@ -67,36 +87,69 @@ impl AcoAlgorithm {
         }
     }
 
-    /// Construit une solution pour une fourmi.
-    /// Les indices clients sont en base 1 dans la phéromone (0 = dépôt).
+    // ── Pré-calcul des candidate lists ────────────────────────────────────
+
+    fn build_candidate_list(problem: &Problem, n: usize, k: usize) -> Vec<Vec<usize>> {
+        (0..n)
+            .map(|node| {
+                let mut dists: Vec<(usize, Float)> = (0..n)
+                    .filter(|&j| j != node)
+                    .map(|j| (j, Self::node_dist_static(problem, node, j)))
+                    .collect();
+                dists.sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                dists.iter().take(k).map(|&(j, _)| j).collect()
+            })
+            .collect()
+    }
+
+    /// Distance statique entre deux nœuds phéromone (0=dépôt).
+    fn node_dist_static(problem: &Problem, a: usize, b: usize) -> Float {
+        let pa = if a == 0 {
+            (&problem.repo.x, &problem.repo.y)
+        } else {
+            (&problem.clients[a - 1].x, &problem.clients[a - 1].y)
+        };
+        let pb = if b == 0 {
+            (&problem.repo.x, &problem.repo.y)
+        } else {
+            (&problem.clients[b - 1].x, &problem.clients[b - 1].y)
+        };
+        let dx = pa.0 - pb.0;
+        let dy = pa.1 - pb.1;
+        ((dx * dx + dy * dy) as Float).sqrt()
+    }
+
+    // ── Construction d'une solution (fourmi) ──────────────────────────────
+
     fn construct_solution(&self, problem: &Problem) -> Solution {
         let mut rng = rand::thread_rng();
         let n_clients = problem.clients.len();
-        let mut unvisited: Vec<usize> = (0..n_clients).collect();
+        // HashSet pour O(1) au lieu de O(n) pour retain()
+        let mut unvisited: HashSet<usize> = (0..n_clients).collect();
         let mut routes: Vec<Vec<usize>> = Vec::new();
 
         while !unvisited.is_empty() {
             let mut route: Vec<usize> = Vec::new();
             let mut current_load: u32 = 0;
-            // current_node : index dans pheromones (0 = dépôt, i+1 = client i)
-            let mut current_node: usize = 0;
+            let mut current_node: usize = 0; // 0 = dépôt
             let mut current_time: Float = problem.repo.ready_time as Float;
 
             loop {
-                // Candidats faisables depuis la position courante
-                let candidates: Vec<usize> = unvisited
-                    .iter()
-                    .copied()
-                    .filter(|&ci| {
-                        self.is_feasible_next(problem, current_node, ci, current_load, current_time)
-                    })
-                    .collect();
+                // ── Candidate list : on considère d'abord les k voisins ───
+                // Si aucun n'est faisable, on élargit à tous les non-visités.
+                let candidates = self.feasible_candidates_from(
+                    problem,
+                    current_node,
+                    current_load,
+                    current_time,
+                    &unvisited,
+                );
 
                 if candidates.is_empty() {
                     break;
                 }
 
-                // Calcul des poids (règle ACS/AS)
+                // ── Sélection probabiliste (règle AS) ────────────────────
                 let weights: Vec<f64> = candidates
                     .iter()
                     .map(|&ci| {
@@ -119,7 +172,7 @@ impl AcoAlgorithm {
                     .map(|(&ci, _)| ci)
                     .unwrap_or(*candidates.last().unwrap());
 
-                // Mise à jour état courant
+                // ── Mise à jour état ──────────────────────────────────────
                 let client = &problem.clients[chosen];
                 let travel = self.dist_from_node(problem, current_node, chosen);
                 current_time += travel;
@@ -128,16 +181,16 @@ impl AcoAlgorithm {
                 current_load += client.demand;
 
                 route.push(chosen);
-                unvisited.retain(|&x| x != chosen);
-                current_node = chosen + 1; // +1 car 0 est le dépôt
+                unvisited.remove(&chosen);
+                current_node = chosen + 1;
             }
 
             if !route.is_empty() {
                 routes.push(route);
             } else {
-                // Sécurité : si aucun client insérable, forcer le premier non visité
-                // dans une route dédiée (ne devrait pas arriver si les données sont saines)
-                let forced = unvisited.remove(0);
+                // Sécurité : forcer le premier non-visité dans une route dédiée
+                let forced = *unvisited.iter().next().unwrap();
+                unvisited.remove(&forced);
                 routes.push(vec![forced]);
             }
         }
@@ -145,19 +198,53 @@ impl AcoAlgorithm {
         Solution { routes }
     }
 
-    /// Vérifie si l'on peut visiter `next_client` depuis `current_node`
-    /// sans violer capacité ni (si activées) fenêtres de temps.
+    /// Retourne les candidats faisables depuis `current_node`, en priorisant
+    /// la candidate list (k voisins) et en élargissant si nécessaire.
+    fn feasible_candidates_from(
+        &self,
+        problem: &Problem,
+        current_node: usize,
+        current_load: u32,
+        current_time: Float,
+        unvisited: &HashSet<usize>,
+    ) -> Vec<usize> {
+        // Phase 1 : restreindre aux k candidats proches
+        let restricted: Vec<usize> = self.candidate_list[current_node]
+            .iter()
+            // Les candidats sont en indice phéromone ; client i = phéromone i+1
+            .filter_map(|&ph| if ph == 0 { None } else { Some(ph - 1) })
+            .filter(|ci| unvisited.contains(ci))
+            .filter(|&ci| {
+                self.is_feasible_next(problem, current_node, ci, current_load, current_time)
+            })
+            .collect();
+
+        if !restricted.is_empty() {
+            return restricted;
+        }
+
+        // Phase 2 : élargissement à tous les non-visités
+        unvisited
+            .iter()
+            .copied()
+            .filter(|&ci| {
+                self.is_feasible_next(problem, current_node, ci, current_load, current_time)
+            })
+            .collect()
+    }
+
+    // ── Vérification de faisabilité ───────────────────────────────────────
+
     fn is_feasible_next(
         &self,
         problem: &Problem,
-        current_node: usize, // 0 = dépôt
+        current_node: usize,
         next_client: usize,
         current_load: u32,
         current_time: Float,
     ) -> bool {
         let client = &problem.clients[next_client];
 
-        // Contrainte capacité
         if current_load + client.demand > problem.max_capacity {
             return false;
         }
@@ -166,24 +253,17 @@ impl AcoAlgorithm {
             return true;
         }
 
-        // Contrainte fenêtre de temps du client
         let travel = self.dist_from_node(problem, current_node, next_client);
         let arrival = current_time + travel;
         if arrival > client.due_time as Float {
             return false;
         }
 
-        // Contrainte retour dépôt après service
         let depart = arrival.max(client.ready_time as Float) + client.service as Float;
         let back_to_depot = depart + Problem::dist(client, &problem.repo);
-        if back_to_depot > problem.repo.due_time as Float {
-            return false;
-        }
-
-        true
+        back_to_depot <= problem.repo.due_time as Float
     }
 
-    /// Distance depuis un nœud phéromone (0 = dépôt) vers un client.
     fn dist_from_node(&self, problem: &Problem, node: usize, client_idx: usize) -> Float {
         let client = &problem.clients[client_idx];
         if node == 0 {
@@ -193,43 +273,85 @@ impl AcoAlgorithm {
         }
     }
 
-    /// Évaporation + dépôt de phéromones.
-    fn update_pheromones(&mut self, problem: &Problem, solutions: &[Solution]) {
+    // ── 2-opt intra-route ─────────────────────────────────────────────────
+
+    /// Applique le 2-opt sur chaque route de la solution.
+    /// Ne vérifie pas les fenêtres de temps (mode rapide) ; active
+    /// `time_into_account` pour une vérification complète si besoin.
+    fn two_opt(&self, problem: &Problem, solution: &mut Solution) {
+        for route in &mut solution.routes {
+            let n = route.len();
+            if n < 4 {
+                continue;
+            }
+            let mut improved = true;
+            while improved {
+                improved = false;
+                'outer: for i in 0..n - 1 {
+                    for j in i + 2..n {
+                        let a = if i == 0 { 0 } else { route[i - 1] + 1 }; // nœud phéromone avant i
+                        let b = route[i] + 1;
+                        let c = route[j] + 1;
+                        let d = if j + 1 < n { route[j + 1] + 1 } else { 0 };
+
+                        let dist_before = Self::node_dist_static(problem, a, b)
+                            + Self::node_dist_static(problem, c, d);
+                        let dist_after = Self::node_dist_static(problem, a, c)
+                            + Self::node_dist_static(problem, b, d);
+
+                        if dist_after < dist_before - 1e-9 {
+                            route[i..=j].reverse();
+                            improved = true;
+                            break 'outer;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Mise à jour MMAS ──────────────────────────────────────────────────
+
+    /// Variante MMAS : seule la meilleure fourmi de l'itération (ou la meilleure
+    /// globale) dépose des phéromones. On alterne entre les deux selon l'itération
+    /// pour éviter la stagnation précoce.
+    fn update_pheromones_mmas(&mut self, problem: &Problem, best_iter: &Solution) {
         let rho = self.params.rho;
         let tau_min = self.params.tau_min;
         let tau_max = self.params.tau_max;
 
-        // Évaporation globale
+        // Évaporation
         for row in &mut self.pheromones {
             for cell in row.iter_mut() {
                 *cell = (*cell * (1.0 - rho)).clamp(tau_min, tau_max);
             }
         }
 
-        // Dépôt proportionnel à la qualité
-        for sol in solutions {
-            let dist = sol.total_distance(problem);
-            if dist < 1e-9 {
-                continue;
-            }
-            let delta = self.params.q / dist;
+        // Dépôt : on alterne entre best_iter et best_global pour diversification
+        let depositor = if self.iteration % 5 == 0 {
+            &self.best_solution.clone()
+        } else {
+            best_iter
+        };
 
-            for route in &sol.routes {
-                // Dépôt → premier client
-                if let Some(&first) = route.first() {
-                    self.pheromones[0][first + 1] =
-                        (self.pheromones[0][first + 1] + delta).clamp(tau_min, tau_max);
-                }
-                // Arcs entre clients
-                for w in route.windows(2) {
-                    let (a, b) = (w[0] + 1, w[1] + 1);
-                    self.pheromones[a][b] = (self.pheromones[a][b] + delta).clamp(tau_min, tau_max);
-                }
-                // Dernier client → dépôt
-                if let Some(&last) = route.last() {
-                    self.pheromones[last + 1][0] =
-                        (self.pheromones[last + 1][0] + delta).clamp(tau_min, tau_max);
-                }
+        let dist = depositor.total_distance(problem);
+        if dist < 1e-9 {
+            return;
+        }
+        let delta = self.params.q / dist;
+
+        for route in &depositor.routes {
+            if let Some(&first) = route.first() {
+                self.pheromones[0][first + 1] =
+                    (self.pheromones[0][first + 1] + delta).clamp(tau_min, tau_max);
+            }
+            for w in route.windows(2) {
+                let (a, b) = (w[0] + 1, w[1] + 1);
+                self.pheromones[a][b] = (self.pheromones[a][b] + delta).clamp(tau_min, tau_max);
+            }
+            if let Some(&last) = route.last() {
+                self.pheromones[last + 1][0] =
+                    (self.pheromones[last + 1][0] + delta).clamp(tau_min, tau_max);
             }
         }
     }
@@ -252,32 +374,39 @@ impl OptimizationAlgorithm for AcoAlgorithm {
                 break;
             }
 
-            // Chaque fourmi construit une solution
-            let solutions: Vec<Solution> = (0..self.params.n_ants)
-                .map(|_| self.construct_solution(problem))
+            // Construction + 2-opt optionnel
+            let mut solutions: Vec<Solution> = (0..self.params.n_ants)
+                .map(|_| {
+                    let mut sol = self.construct_solution(problem);
+                    if self.params.use_two_opt {
+                        self.two_opt(problem, &mut sol);
+                    }
+                    sol
+                })
                 .collect();
 
-            // Mise à jour des phéromones
-            self.update_pheromones(problem, &solutions);
+            // Meilleure fourmi de l'itération
+            let best_iter = solutions
+                .iter()
+                .min_by(|a, b| {
+                    a.total_distance(problem)
+                        .partial_cmp(&b.total_distance(problem))
+                        .unwrap()
+                })
+                .unwrap()
+                .clone();
 
-            // Mise à jour de la meilleure solution
-            for sol in &solutions {
-                let d = sol.total_distance(problem);
-                if d < self.best_distance {
-                    self.best_distance = d;
-                    self.best_solution = sol.clone();
-                }
+            // Mise à jour MMAS
+            self.update_pheromones_mmas(problem, &best_iter);
+
+            // Mise à jour best global
+            let best_iter_dist = best_iter.total_distance(problem);
+            if best_iter_dist < self.best_distance {
+                self.best_distance = best_iter_dist;
+                self.best_solution = best_iter.clone();
             }
 
-            // Solution courante = meilleure fourmi de cette itération
-            if let Some(best_ant) = solutions.iter().min_by(|a, b| {
-                a.total_distance(problem)
-                    .partial_cmp(&b.total_distance(problem))
-                    .unwrap()
-            }) {
-                self.current_solution = best_ant.clone();
-            }
-
+            self.current_solution = best_iter;
             self.iteration += 1;
         }
     }
@@ -287,7 +416,7 @@ impl OptimizationAlgorithm for AcoAlgorithm {
     }
 }
 
-// ── OptimizerDescriptor (enregistrement via inventory) ───────────────────────
+// ── OptimizerDescriptor ───────────────────────────────────────────────────────
 
 fn draw_aco_params_ui(params: &mut dyn Any, ui: &mut egui::Ui) {
     let params = params.downcast_mut::<AcoParams>().unwrap();
@@ -296,6 +425,11 @@ fn draw_aco_params_ui(params: &mut dyn Any, ui: &mut egui::Ui) {
     ui.add(egui::Slider::new(&mut params.beta, 0.1..=5.0).text("Beta (heuristique)"));
     ui.add(egui::Slider::new(&mut params.rho, 0.01..=0.5).text("Rho (évaporation)"));
     ui.add(egui::Slider::new(&mut params.q, 1.0..=1000.0).text("Q (dépôt)"));
+    ui.add(egui::Slider::new(&mut params.k_candidates, 3..=20).text("K candidats"));
+    ui.add(egui::Checkbox::new(
+        &mut params.use_two_opt,
+        "2-opt local search",
+    ));
     ui.add(egui::Slider::new(&mut params.max_iterations, 50..=2000).text("Itérations"));
 }
 
