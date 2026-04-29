@@ -48,7 +48,7 @@ pub struct SimulatedAnnealing {
 
 impl SimulatedAnnealing {
     /// We have to send a StdRng because Rng is not Send => cannot send it thread-safely
-    pub(crate) fn new(
+    pub fn new(
         problem: &Problem,
         solution: &Solution,
         params: SAParams,
@@ -123,7 +123,7 @@ impl OptimizationAlgorithm for SimulatedAnnealing {
     }
 }
 
-fn create_default_params() -> Box<dyn Any + Send + Sync> {
+pub fn create_default_params() -> Box<dyn Any + Send + Sync> {
     Box::new(SAParams::default())
 }
 
@@ -151,7 +151,7 @@ fn draw_params_ui(params: &mut dyn Any, ui: &mut egui::Ui) {
     );
 }
 
-fn build_algorithm(
+pub fn build_algorithm(
     problem: &Problem,
     solution: &Solution,
     params: &dyn Any,

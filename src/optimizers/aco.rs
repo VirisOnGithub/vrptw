@@ -114,8 +114,8 @@ impl AcoAlgorithm {
         } else {
             (&problem.clients[b - 1].x, &problem.clients[b - 1].y)
         };
-        let dx = pa.0 - pb.0;
-        let dy = pa.1 - pb.1;
+        let dx = *pa.0 as i64 - *pb.0 as i64;
+        let dy = *pa.1 as i64 - *pb.1 as i64;
         ((dx * dx + dy * dy) as Float).sqrt()
     }
 
@@ -375,7 +375,7 @@ impl OptimizationAlgorithm for AcoAlgorithm {
             }
 
             // Construction + 2-opt optionnel
-            let mut solutions: Vec<Solution> = (0..self.params.n_ants)
+            let solutions: Vec<Solution> = (0..self.params.n_ants)
                 .map(|_| {
                     let mut sol = self.construct_solution(problem);
                     if self.params.use_two_opt {
@@ -433,18 +433,25 @@ fn draw_aco_params_ui(params: &mut dyn Any, ui: &mut egui::Ui) {
     ui.add(egui::Slider::new(&mut params.max_iterations, 50..=2000).text("Itérations"));
 }
 
+pub fn build_algorithm(
+    problem: &Problem,
+    solution: &Solution,
+    params: &dyn Any,
+    time_into_account: bool,
+) -> Box<dyn OptimizationAlgorithm + Send + Sync> {
+    let params = params.downcast_ref::<AcoParams>().unwrap().clone();
+    Box::new(AcoAlgorithm::new(
+        problem,
+        solution,
+        params,
+        time_into_account,
+    ))
+}
+
 inventory::submit!(OptimizerDescriptor {
     id: "aco",
     label: "Ant Colony Optimization",
     create_default_params: || Box::new(AcoParams::default()),
     draw_params_ui: draw_aco_params_ui,
-    build_algorithm: |problem, solution, params, time_into_account| {
-        let params = params.downcast_ref::<AcoParams>().unwrap().clone();
-        Box::new(AcoAlgorithm::new(
-            problem,
-            solution,
-            params,
-            time_into_account,
-        ))
-    },
+    build_algorithm: build_algorithm,
 });

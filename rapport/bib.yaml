@@ -1,0 +1,4 @@
+egui:
+  type: Web
+  url: https://github.com/emilk/egui
+  title: "egui: an easy-to-use immediate mode GUI in Rust that runs on both web and native"

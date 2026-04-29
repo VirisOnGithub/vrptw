@@ -1,5 +1,5 @@
-pub(crate) mod simulated_annealing;
-pub(crate) mod aco;
+pub mod aco;
+pub mod simulated_annealing;
 
 use std::any::Any;
 
