@@ -1,4 +1,7 @@
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use vrptw_code::{
@@ -24,7 +27,7 @@ fn get_vrp_files() -> Result<Vec<std::path::PathBuf>, std::io::Error> {
     Ok(files)
 }
 
-fn default_sa(files: &Vec<PathBuf>) -> Vec<(&PathBuf, f64)> {
+fn default_sa(files: &Vec<PathBuf>) -> Vec<(&PathBuf, f64, Duration)> {
     files
         .par_iter()
         .map(|file| {
@@ -37,12 +40,12 @@ fn default_sa(files: &Vec<PathBuf>) -> Vec<(&PathBuf, f64)> {
                 simulated_annealing::build_algorithm(&pb, &solution, &sa_params, true);
             algorithm.step(&pb, usize::MAX);
             let best_dist = algorithm.current_solution().total_distance(&pb);
-            (file, best_dist)
+            (file, best_dist, Duration::from_millis(0)) // Placeholder duration, replace with actual timing if needed
         })
-        .collect::<Vec<(&PathBuf, f64)>>()
+        .collect::<Vec<(&PathBuf, f64, Duration)>>()
 }
 
-fn default_aco(files: &Vec<PathBuf>) -> Vec<(&PathBuf, f64)> {
+fn default_aco(files: &Vec<PathBuf>) -> Vec<(&PathBuf, f64, Duration)> {
     files
         .par_iter()
         .map(|file| {
@@ -53,11 +56,34 @@ fn default_aco(files: &Vec<PathBuf>) -> Vec<(&PathBuf, f64)> {
             let aco_params = AcoParams::default();
             let mut algorithm =
                 vrptw_code::optimizers::aco::build_algorithm(&pb, &solution, &aco_params, true);
+            let starting_time = Instant::now();
             algorithm.step(&pb, usize::MAX);
             let best_dist = algorithm.current_solution().total_distance(&pb);
-            (file, best_dist)
+            let duration = starting_time.elapsed();
+            (file, best_dist, duration)
         })
-        .collect::<Vec<(&PathBuf, f64)>>()
+        .collect::<Vec<(&PathBuf, f64, Duration)>>()
+}
+
+fn default_hc(files: &Vec<PathBuf>) -> Vec<(&PathBuf, f64, Duration)> {
+    files
+        .par_iter()
+        .map(|file| {
+            let data = std::fs::read_to_string(file).expect("Couldn't open file");
+            let parsed_input = vrptw_code::parser::InputData::parse_input(data.as_str());
+            let pb = problem::Problem::new(parsed_input);
+            let solution = Solution::simplest(&pb);
+            let hc_params = vrptw_code::optimizers::hill_climbing::HCParams::default();
+            let mut algorithm = vrptw_code::optimizers::hill_climbing::build_algorithm(
+                &pb, &solution, &hc_params, true,
+            );
+            let starting_time = Instant::now();
+            algorithm.step(&pb, usize::MAX);
+            let best_dist = algorithm.current_solution().total_distance(&pb);
+            let duration = starting_time.elapsed();
+            (file, best_dist, duration)
+        })
+        .collect::<Vec<(&PathBuf, f64, Duration)>>()
 }
 
 #[test]
@@ -66,9 +92,11 @@ fn test_comparaison() -> Result<(), Box<dyn std::error::Error>> {
 
     let sa_results = default_sa(&files);
     let aco_results = default_aco(&files);
+    let hc_results = default_hc(&files);
 
     println!("Comparaison done for all files.");
     println!("SA Results: {:?}", sa_results);
     println!("ACO Results: {:?}", aco_results);
+    println!("HC Results: {:?}", hc_results);
     Ok(())
 }

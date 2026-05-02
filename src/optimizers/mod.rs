@@ -1,4 +1,5 @@
 pub mod aco;
+pub mod hill_climbing;
 pub mod simulated_annealing;
 
 use std::any::Any;

@@ -35,17 +35,15 @@ impl Sidebar for VrpApp {
                             );
                         }
                     });
-                if ui.button("Charger").clicked() {
-                    self.reset();
-                    let selected_file = self.files[self.selected_file_id].clone();
-                    let input_data = self.load_file(selected_file);
-                    self.buffer = format!("{:#?}", input_data);
-                    let problem = Problem::new(input_data);
-                    self.problem = Some(problem.clone());
-                    let solution = Solution::simplest(&problem);
-                    self.solution = Some(solution.clone());
-                    self.buffer = format!("{:#?}", solution);
-                    self.is_random_solution = true;
+                ui.label("Solutions Initiales");
+                if ui.button("Plus simple").clicked() {
+                    self.gen_basic_solution("simplest".to_string());
+                }
+                if ui.button("Glouton").clicked() {
+                    self.gen_basic_solution("greedy".to_string());
+                }
+                if ui.button("Aléatoire").clicked() {
+                    self.gen_basic_solution("random".to_string());
                 }
                 if ui.button("Effacer").clicked() {
                     self.reset();
@@ -149,5 +147,23 @@ impl VrpApp {
         self.is_random_solution = false;
         self.starting_time = None;
         self.last_optimization_time = None;
+    }
+
+    fn gen_basic_solution(&mut self, sol_type: String) {
+        self.reset();
+        let selected_file = self.files[self.selected_file_id].clone();
+        let input_data = self.load_file(selected_file);
+        self.buffer = format!("{:#?}", input_data);
+        let problem = Problem::new(input_data);
+        self.problem = Some(problem.clone());
+        let solution = match sol_type.as_str() {
+            "simplest" => Solution::simplest(&problem),
+            "greedy" => Solution::greedy(&problem),
+            "random" => Solution::random(&problem),
+            _ => panic!("Unknown solution type"),
+        };
+        self.solution = Some(solution.clone());
+        self.buffer = format!("{:#?}", solution);
+        self.is_random_solution = true;
     }
 }

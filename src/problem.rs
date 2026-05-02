@@ -1,5 +1,5 @@
 use crate::parser::{Client, InputData, Int, Localizable, Repository};
-use rand::prelude::SliceRandom;
+use rand::{Rng, prelude::SliceRandom};
 
 pub type Float = f64;
 
@@ -71,7 +71,7 @@ impl Solution {
             .sum()
     }
 
-    pub fn random(problem: &Problem) -> Self {
+    pub fn greedy(problem: &Problem) -> Self {
         let max_capacity_random = (problem.max_capacity as f64) * 0.8;
         let mut current_capacity = max_capacity_random;
 
@@ -84,6 +84,37 @@ impl Solution {
             let demand = client.demand;
             // if there is enough capacity, add the client to the current route
             if current_capacity - demand as f64 >= 0.0 {
+                current_route.push(i);
+                current_capacity -= demand as f64;
+            } else {
+                // else, publish the current route, start a new one
+                routes.push(current_route);
+                current_route = vec![i];
+                current_capacity = max_capacity_random - demand as f64;
+            }
+        }
+
+        if !current_route.is_empty() {
+            routes.push(current_route);
+        }
+
+        Self { routes }
+    }
+
+    pub fn random(problem: &Problem) -> Self {
+        let max_capacity_random = (problem.max_capacity as f64) * 0.8;
+        let mut current_capacity = max_capacity_random;
+
+        let mut routes = Vec::new();
+        let mut current_route = Vec::new();
+        let mut clients: Vec<(usize, &Client)> = problem.clients.iter().enumerate().collect();
+        let mut rng = rand::thread_rng();
+        clients.shuffle(&mut rng);
+
+        for (i, client) in clients {
+            let demand = client.demand;
+            // if there is enough capacity, add the client to the current route
+            if current_capacity - demand as f64 >= 0.0 && rng.gen_ratio(9, 10) {
                 current_route.push(i);
                 current_capacity -= demand as f64;
             } else {
