@@ -100,8 +100,6 @@ pub fn plot_series_y_vs_index<P: AsRef<Path>>(
             ys.push(*y);
         }
     }
-    let y_min = ys.iter().cloned().fold(f64::INFINITY, f64::min);
-    let y_max = ys.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
 
     plot_multi_series_line(
         path,
