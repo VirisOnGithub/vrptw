@@ -344,7 +344,7 @@ fn write_markdown_report(
 // PLOTTING HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-fn plot_sensitivity_by_param(
+fn _plot_sensitivity_by_param(
     algo_name: &str,
     results: &[ParamResult],
     _param_name: &str,
