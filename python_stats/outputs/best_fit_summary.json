@@ -1,0 +1,102 @@
+[
+  {
+    "csv": "/home/clement/popo/opti/projet/vrptw-code/plots/sa_alpha_data101.csv",
+    "best_model": "quadratic",
+    "equation": "y = -33538.1 + 82270.5*x + -46991.9*x^2",
+    "rmse": 15.226829274974584,
+    "r2": 0.9963419769838774,
+    "aicc": 64.46117911604429,
+    "report": "python_stats/outputs/sa_alpha_data101_best_fit.json",
+    "plot": null
+  },
+  {
+    "csv": "/home/clement/popo/opti/projet/vrptw-code/plots/sa_alpha_data102.csv",
+    "best_model": "quadratic",
+    "equation": "y = -39839.5 + 94210.6*x + -52823*x^2",
+    "rmse": 19.65680874674172,
+    "r2": 0.9924011129900618,
+    "aicc": 69.5684755880815,
+    "report": "python_stats/outputs/sa_alpha_data102_best_fit.json",
+    "plot": null
+  },
+  {
+    "csv": "/home/clement/popo/opti/projet/vrptw-code/plots/sa_alpha_data1101.csv",
+    "best_model": "shifted_power_gap",
+    "equation": "y = c + exp(a + b*ln(1-x))",
+    "rmse": 14.822733316798931,
+    "r2": 0.998104640881118,
+    "aicc": 63.923240743878644,
+    "report": "python_stats/outputs/sa_alpha_data1101_best_fit.json",
+    "plot": null
+  },
+  {
+    "csv": "/home/clement/popo/opti/projet/vrptw-code/plots/sa_alpha_data1102.csv",
+    "best_model": "cubic",
+    "equation": "y = 426875 + -1.38755e+06*x + 1.5169e+06*x^2 + -554667*x^3",
+    "rmse": 10.111905298068871,
+    "r2": 0.9988656985162223,
+    "aicc": 62.27426944117826,
+    "report": "python_stats/outputs/sa_alpha_data1102_best_fit.json",
+    "plot": null
+  },
+  {
+    "csv": "/home/clement/popo/opti/projet/vrptw-code/plots/sa_alpha_data111.csv",
+    "best_model": "shifted_power_gap",
+    "equation": "y = c + exp(a + b*ln(1-x))",
+    "rmse": 12.569417532658077,
+    "r2": 0.9967405521574461,
+    "aicc": 60.62533367266763,
+    "report": "python_stats/outputs/sa_alpha_data111_best_fit.json",
+    "plot": null
+  },
+  {
+    "csv": "/home/clement/popo/opti/projet/vrptw-code/plots/sa_alpha_data112.csv",
+    "best_model": "shifted_power_gap",
+    "equation": "y = c + exp(a + b*ln(1-x))",
+    "rmse": 10.669911986883434,
+    "r2": 0.9962550423260165,
+    "aicc": 57.34855633255335,
+    "report": "python_stats/outputs/sa_alpha_data112_best_fit.json",
+    "plot": null
+  },
+  {
+    "csv": "/home/clement/popo/opti/projet/vrptw-code/plots/sa_alpha_data1201.csv",
+    "best_model": "cubic",
+    "equation": "y = 2.05509e+06 + -6.49358e+06*x + 6.85037e+06*x^2 + -2.41054e+06*x^3",
+    "rmse": 27.73233870737493,
+    "r2": 0.9925337439419035,
+    "aicc": 82.45198389198316,
+    "report": "python_stats/outputs/sa_alpha_data1201_best_fit.json",
+    "plot": null
+  },
+  {
+    "csv": "/home/clement/popo/opti/projet/vrptw-code/plots/sa_alpha_data1202.csv",
+    "best_model": "shifted_power_gap",
+    "equation": "y = c + exp(a + b*ln(1-x))",
+    "rmse": 15.078516560546332,
+    "r2": 0.9965684227254116,
+    "aicc": 64.26541972848958,
+    "report": "python_stats/outputs/sa_alpha_data1202_best_fit.json",
+    "plot": null
+  },
+  {
+    "csv": "/home/clement/popo/opti/projet/vrptw-code/plots/sa_alpha_data201.csv",
+    "best_model": "quadratic",
+    "equation": "y = -33700.9 + 80475*x + -45534.6*x^2",
+    "rmse": 22.917422661206086,
+    "r2": 0.9890899449014774,
+    "aicc": 72.6379487237416,
+    "report": "python_stats/outputs/sa_alpha_data201_best_fit.json",
+    "plot": null
+  },
+  {
+    "csv": "/home/clement/popo/opti/projet/vrptw-code/plots/sa_alpha_data202.csv",
+    "best_model": "quadratic",
+    "equation": "y = -24385.4 + 60316.5*x + -34812.7*x^2",
+    "rmse": 8.730299143293134,
+    "r2": 0.9982304454307833,
+    "aicc": 53.33599270783894,
+    "report": "python_stats/outputs/sa_alpha_data202_best_fit.json",
+    "plot": null
+  }
+]

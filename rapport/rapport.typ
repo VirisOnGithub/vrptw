@@ -153,7 +153,78 @@
 
   Une fois la solution initiale chargée, le bouton `Résoudre` devrait redevenir cliquable, et il lancera l'algorithme présent dans la liste déroulante juste en dessous. Les paramètres doivent être ajustés avant de cliquer sur le bouton.
 
-  Pour la résolution deux choix sont possibles, et représentés par les 
+  Pour la résolution deux choix sont possibles, et représentés par les cases en haut :
+
+  - Prise en compte du temps : les algorithmes fonctionnent avec et sans la dimension de temps, il est possible de l'activer ou de la désactiver.
+
+  - Affichage des étapes : afficher les situations intermédiaires rend l'algorithme plus passionant, mais son affichage fausse les temps de résolution. Ainsi il peut être judicieux de désactiver l'affichage des étapes pour avoir une meilleure idée du temps de résolution.
+
+  == Résultats obtenus (tests)
+
+  #let tests(filename, caption: none, height: 16%) = {
+    let files = (101, 102, 111, 112, 201, 202, 1101, 1102, 1201, 1202).map(f => (
+      "../plots/" + filename + "data" + str(f) + ".png"
+    ))
+    figure(
+      grid(
+        columns: 2,
+        gutter: 10pt,
+        ..files.map(f => image(f, height: height)),
+      ),
+      caption: caption,
+      kind: "Comparaison",
+      supplement: "Comparaison",
+    )
+  }
+
+  === Tests paramétriques
+
+  Dans un premier temps, j'ai voulu tester la sensibilité de chacun des algorithmes significatifs (SA, ACO) à leurs paramètres respectifs.
+
+  #block-left(title: "Note")[
+    Tous les graphes présentés dans cette section sont disponibles dans les annexes.
+  ]
+
+  ==== Recuit simulé
+
+  #let python_json = json("../python_stats/outputs/best_fit_summary.json")
+
+  #let math_eval(equation) = eval(equation, mode: "math")
+
+  ===== Facteur de refroissement $alpha$
+
+  #tests(
+    "sa_alpha_",
+    caption: [Distance en fonction du facteur de refroidissement $alpha$ pour chacun des fichiers proposés],
+  )
+
+  On observe clairement une amélioration de la solution à mesure que le facteur de refroidissement augmente. Ces graphes ne le montrent pas, mais évidemment le temps de traitement augmente également. On pouvait s'attendre à ce résultat, puisque si le facteur de refroissement augmente, la température diminue plus lentement, et donc l'algorithme fait plus d'itérations.
+
+  Le plus intéressant serait de savoir quel est la courbe qui collerait le plus à ces valeurs. Avec un petit script python, on peut voir quel modèle (quadratique, logarithmique, linéaire, cubique, exponentiel, ...) serait le plus adapté. Pour les deux premiers fichiers, c'est une courbe quadratique qui semble la plus adaptée (avec des formules quelque peu étonnantes#footnote[La formule pour le premier graphe est : #math_eval(python_json.at(0).equation.replace("x", "alpha").replace("y", "\"score\""))]). Pour les suivants, il y a un combat entre les courbes de type _shifting power gap_ et les courbes cubiques. Dans tous les cas, ce n'est jamais une courbe linéaire. Ainsi l'influence du facteur de refroidissement est plus importante à mesure que celui-ci augmente, et ce au moins de l'ordre du carré.
+
+  #pagebreak()
+
+  ===== Température initiale $T_0$
+
+  #tests(
+    "Temp - ",
+    caption: [Distance en fonction de la température initiale $T_0$ pour chacun des fichiers proposés],
+  )
+
+  Pour la température initiale, on voit des résultats beaucoup plus mitigés. Autant pour certains fichiers comme le premier, le deuxième, le septième et le huitième, on semble avoir une influence positive sur le résultat (la courbe semble, malgré beaucoup de bruit, être décroissante), autant pour les autres fichiers, en dehors d'une baisse significative pour une température initialé inférieure à 20°, il n'y a pas de tendance claire. En tout cas, l'influence est largement moins visible que pour $alpha$.
+
+  #pagebreak()
+
+  ===== Température finale $T_f$
+
+  #tests(
+    "sa_t_final_",
+    caption: [Distance en fonction de la température finale $T_f$ pour chacun des fichiers proposés],
+  )
+
+  Pour la témpérature finale en revanche, l'influence est beaucoup plus nette : Pour tous les graphes, quand la température finale se trouve entre 1 et 10 degrés, on obtient une fonction linéaire croissante. Ainsi, jusqu'à environ 1 degré, il est toujours intéressant (en tout cas au vu du panel de solutions testées) de faire baisser la température finale, puisque son influence ne s'amenuise pas avec le temps.
+
+  En revanche, en dessous de 1 degré, l'influence de la température finale est moins claire : pour tous les fichiers, il semble y avoir une irrégularité dans les courbes,
 
 
   = Utilisation de l'IA dans ce projet
